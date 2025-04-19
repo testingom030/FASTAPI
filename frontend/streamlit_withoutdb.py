@@ -4,7 +4,7 @@ import json
 import google.generativeai as genai
 
 # Configure Gemini API
-GOOGLE_API_KEY = "your-api-key-here"  # Replace this with your actual API key
+GOOGLE_API_KEY = "AIzaSyAXhFcjJ6qfTH56sL4caZ1LdOTAgbxj3dk"  # Replace this with your actual API key
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # Resume Analysis Function Using Gemini
