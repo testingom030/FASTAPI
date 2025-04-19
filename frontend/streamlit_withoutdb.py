@@ -1,133 +1,92 @@
 import streamlit as st
-from streamlit_extras.add_vertical_space import add_vertical_space
-import google.generativeai as genai
-import os
-import PyPDF2 as pdf
-from dotenv import load_dotenv
+import PyPDF2
 import json
 
-load_dotenv() ## load all our environment variables
+# Simulate or import your LLM resume analysis logic here
+def analyze_resume(resume_text, job_description):
+    # This function should return a dictionary
+    # Replace this with actual LLM/Gemini/OpenAI logic
+    return {
+        "name": "John Doe",
+        "email": "john.doe@example.com",
+        "core_skills": ["Python", "Machine Learning", "FastAPI"],
+        "soft_skills": ["Teamwork", "Communication"],
+        "resume_rating": 85,
+        "improvement_areas": "Add more recent projects.",
+        "uploaded_file_name": "resume.pdf",
+        "job_fit_score": 78,
+        "upskill_suggestions": "Learn Docker and cloud deployment.",
+        "skillset_improvements": ["Docker", "Cloud Architecture"]
+    }
 
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-def get_gemini_response(resume_text, jd_text, file_name):
-    model = genai.GenerativeModel('models/gemini-1.5-pro-latest')
+# Init session state
+if "history" not in st.session_state:
+    st.session_state.history = []
 
-    prompt = f"""
-Act like a highly experienced ATS system.
+# Page config
+st.set_page_config(page_title="AI Resume Parser", layout="wide")
+tab1, tab2 = st.tabs(["Upload Resume", "View History"])
 
-Compare the resume and job description below. Output a structured JSON like this:
+with tab1:
+    st.title("📤 Upload Resume")
+    jd = st.text_area("Paste Job Description")
+    uploaded_file = st.file_uploader("Upload Resume PDF", type="pdf")
 
-{{
-  "name": "Extracted Name from Resume",
-  "email": "Extracted Email",
-  "core_skills": ["skill1", "skill2"],
-  "soft_skills": ["skillA", "skillB"],
-  "resume_rating": 0-100 (based on relevance to job),
-  "improvement_areas": "short paragraph",
-  "uploaded_file_name": "{file_name}",
-  "job_fit_score": score from -5 to +5 (based on fit),
-  "upskill_suggestions": "missing keywords or skills to learn"
-}}
+    if st.button("Submit") and uploaded_file and jd:
+        with st.spinner("Analyzing Resume..."):
+            try:
+                # Extract text from PDF
+                pdf_reader = PyPDF2.PdfReader(uploaded_file)
+                resume_text = ""
+                for page in pdf_reader.pages:
+                    resume_text += page.extract_text()
 
-Resume:
-{resume_text}
+                # Call your resume parser
+                result = analyze_resume(resume_text, jd)
+                result["uploaded_file_name"] = uploaded_file.name
 
-Job Description:
-{jd_text}
-    """
+                # Display analysis
+                st.success("Analysis complete!")
+                st.subheader("🧾 Analysis Output")
+                st.json(result)
 
-    response = model.generate_content(prompt)
-    
-    try:
-        data = json.loads(response.text)
-    except:
-        st.warning("⚠️ Gemini response wasn't valid JSON. Here's the raw output:")
-        return response.text
+                # Formatted display
+                st.subheader("Formatted Analysis")
+                st.write(f"**Candidate Name:** {result.get('name', 'Not specified')}")
+                st.write(f"**Email:** {result.get('email', 'Not specified')}")
+                st.write(f"**Core Skills:** {', '.join(result.get('core_skills', [])) or 'None'}")
+                st.write(f"**Soft Skills:** {', '.join(result.get('soft_skills', [])) or 'None'}")
+                st.write(f"**Resume Rating:** {result.get('resume_rating', 0)}%")
+                st.write(f"**Improvement Areas:** {result.get('improvement_areas', 'None')}")
+                st.write(f"**Uploaded File:** {result.get('uploaded_file_name', 'Not specified')}")
+                st.write(f"**Job Fit Score:** {result.get('job_fit_score', 0)}%")
+                st.write(f"**Upskill Suggestions:** {result.get('upskill_suggestions', 'None')}")
+                st.write(f"**Skillset Improvements:** {', '.join(result.get('skillset_improvements', [])) or 'None'}")
 
-    return data
+                # Save to session history
+                st.session_state.history.append(result)
 
+            except Exception as e:
+                st.error(f"Error analyzing resume: {e}")
 
-def input_pdf_text(uploaded_file):
-    reader=pdf.PdfReader(uploaded_file)
-    text=""
-    for page in range(len(reader.pages)):
-        page=reader.pages[page]
-        text+=str(page.extract_text())
-    return text
+with tab2:
+    st.title("📜 Resume History")
 
-#Prompt Template
-
-input_prompt="""
-Hey Act Like a skilled or very experience ATS(Application Tracking System)
-with a deep understanding of tech field,software engineering,data science ,data analyst
-and big data engineer. Your task is to evaluate the resume based on the given job description.
-You must consider the job market is very competitive and you should provide 
-best assistance for improving thr resumes. Assign the percentage Matching based 
-on Jd and
-the missing keywords with high accuracy
-resume:{text}
-description:{jd}
-
-I want the response as per below structure
-{
-  "name": "Abhimanyu Ajudiya",
-  "email": "abhimanyuajudiya@gmail.com",
-  "core_skills": [
-    "Python",
-    "Docker",
-    "REST APIs"
-  ],
-  "soft_skills": [
-    "Communication",
-    "Teamwork"
-  ],
-  "resume_rating": 60,
-  "improvement_areas": "Improve LinkedIn presence, project descriptions.",
-  "uploaded_file_name": "Abhimanyu.pdf",
-  "job_fit_score": -3.25,
-  "upskill_suggestions": "Resume may be missing relevant job keywords: string"
-}
-
-"""
-
-## streamlit app
-
-with st.sidebar:
-    st.title("Smart ATS for Resumes")
-    st.subheader("About")
-    st.write("This sophisticated ATS project, developed with Gemini Pro and Streamlit, seamlessly incorporates advanced features including resume match percentage, keyword analysis to identify missing criteria, and the generation of comprehensive profile summaries, enhancing the efficiency and precision of the candidate evaluation process for discerning talent acquisition professionals.")
-    
-    st.markdown("""
-    - [Streamlit](https://streamlit.io/)
-    - [Gemini Pro](https://deepmind.google/technologies/gemini/#introduction)
-    - [makersuit API Key](https://makersuite.google.com/)
-    - [Github](https://github.com/OMCHOKSI108/End-To-End-Resume-ATS-Tracking-LLM-Project-With-Google-Gemini-Pro) Repository
-                
-    """)
-    
-    add_vertical_space(5)
-    st.write("Made with ❤ by OM CHOKSI.")
-    
-    
-
-
-st.title("Smart Application Tracking System")
-st.text("Improve Your Resume ATS")
-jd=st.text_area("Paste the Job Description")
-uploaded_file=st.file_uploader("Upload Your Resume",type="pdf",help="Please uplaod the pdf")
-
-submit = st.button("Submit")
-if submit:
-    if uploaded_file is not None and jd:
-        resume_text = input_pdf_text(uploaded_file)
-        file_name = uploaded_file.name
-        result = get_gemini_response(resume_text, jd, file_name)
-
-        st.subheader("Analysis Result")
-
-        if isinstance(result, dict):
-            st.json(result)
-        else:
-            st.code(result)  # fallback if it's just raw text
+    if st.session_state.history:
+        for i, res in enumerate(st.session_state.history[::-1], 1):
+            file_name = res.get("uploaded_file_name", f"Resume {i}")
+            name = res.get("name", "Unknown Name")
+            with st.expander(f"{file_name} - {name}"):
+                st.json(res)
+                st.write(f"**Candidate Name:** {res.get('name', 'Not specified')}")
+                st.write(f"**Email:** {res.get('email', 'Not specified')}")
+                st.write(f"**Core Skills:** {', '.join(res.get('core_skills', [])) or 'None'}")
+                st.write(f"**Soft Skills:** {', '.join(res.get('soft_skills', [])) or 'None'}")
+                st.write(f"**Resume Rating:** {res.get('resume_rating', 0)}%")
+                st.write(f"**Improvement Areas:** {res.get('improvement_areas', 'None')}")
+                st.write(f"**Uploaded File:** {res.get('uploaded_file_name', 'Not specified')}")
+                st.write(f"**Job Fit Score:** {res.get('job_fit_score', 0)}%")
+                st.write(f"**Upskill Suggestions:** {res.get('upskill_suggestions', 'None')}")
+                st.write(f"**Skillset Improvements:** {', '.join(res.get('skillset_improvements', [])) or 'None'}")
     else:
-        st.warning("Please upload a resume and provide a job description.")
+        st.info("No resumes analyzed yet.")
